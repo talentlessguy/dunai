@@ -1,7 +1,7 @@
 import { Transform } from 'node:stream'
 import speedometer from 'speedometer'
 
-interface ProgressStreamOptions {
+export interface ProgressOptions {
   length?: number
   time?: number
   drain?: boolean
@@ -10,15 +10,26 @@ interface ProgressStreamOptions {
   objectMode?: boolean
 }
 
-interface ProgressUpdate {
+export interface ProgressUpdate {
   percentage: number
   transferred: number
   length: number
   remaining: number
   eta: number
   runtime: number
-  delta: number
-  speed: number
+  delta?: number
+  speed?: number
+}
+
+type ProgressCallback = (update: ProgressUpdate) => void
+
+interface ProgressStream extends Transform {
+  on(event: string | symbol, listener: (...args: any[]) => void): this
+  on(event: 'length', listener: (length: number) => void): this
+  on(event: 'progress', listener: (update: ProgressUpdate) => void): this
+  emit(event: string | symbol, ...args: any[]): boolean
+  emit(event: 'length', length: number): boolean
+  emit(event: 'progress', update: ProgressUpdate): boolean
 }
 
 class ProgressStream extends Transform {
@@ -32,19 +43,24 @@ class ProgressStream extends Transform {
   #startTime: number
   #update: ProgressUpdate
 
-  constructor(
-    options: ProgressStreamOptions = {},
-    private onprogress?: (update: ProgressUpdate) => void
-  ) {
-    super({ objectMode: options.objectMode || false })
+  constructor(options: ProgressOptions | ProgressCallback = {}, onprogress?: ProgressCallback) {
+    if (typeof options === 'function') {
+      onprogress = options
+      options = {}
+    }
+    const opts = options as ProgressOptions
+    super({
+      objectMode: opts.objectMode,
+      highWaterMark: opts.objectMode ? 16 : undefined
+    })
 
-    this.#length = options.length || 0
-    this.#time = options.time || 0
-    this.#drain = options.drain || false
-    this.#transferred = options.transferred || 0
+    this.#length = opts.length || 0
+    this.#time = opts.time || 0
+    this.#drain = opts.drain || false
+    this.#transferred = opts.transferred || 0
     this.#nextUpdate = Date.now() + this.#time
     this.#delta = 0
-    this.#speed = speedometer(options.speed || 5000)
+    this.#speed = speedometer(opts.speed || 5000)
     this.#startTime = Date.now()
 
     this.#update = {
@@ -53,92 +69,85 @@ class ProgressStream extends Transform {
       length: this.#length,
       remaining: this.#length,
       eta: 0,
-      runtime: 0,
-      delta: 0,
-      speed: 0
+      runtime: 0
     }
 
     if (this.#drain) this.resume()
-    if (this.onprogress) this.on('progress', this.onprogress)
+    if (onprogress) this.on('progress', onprogress)
 
-    // Fix: Remove redundant check and handle the 'pipe' event correctly
-    this.on('pipe', (stream) => {
-      if (typeof this.#length === 'number' && this.#length > 0) return
-
-      // Support http module
-      if (stream.readable && (stream as any).headers) {
-        const contentLength = Number.parseInt((stream as any).headers['content-length'] || '0', 10)
-        if (contentLength > 0) {
-          this.setLength(contentLength)
-        }
-        return
-      }
-
-      // Support streams with a length property
-      if (typeof (stream as any).length === 'number' && (stream as any).length > 0) {
-        this.setLength((stream as any).length)
-        return
-      }
-
-      // Support request module
-      stream.on('response', (res: any) => {
-        if (!res || !res.headers) return
-        if (res.headers['content-encoding'] === 'gzip') return
-        if (res.headers['content-length']) {
-          this.setLength(Number.parseInt(res.headers['content-length'], 10))
-        }
-      })
-    })
+    this.#setupPipeHandler()
   }
 
-  _transform(chunk: any, _encoding: BufferEncoding, callback: (error?: Error | null, data?: any) => void): void {
+  #emitProgress(ended = false) {
+    this.#update.delta = this.#delta
+
+    // Fix percentage calculation for unknown lengths
+    this.#update.percentage =
+      ended && this.#length > 0 ? 100 : this.#length ? (this.#transferred / this.#length) * 100 : 0
+
+    // Rest of the method remains the same
+    this.#update.speed = this.#speed(this.#delta)
+    this.#update.eta = Math.round(this.#update.remaining / (this.#update.speed || 1))
+    this.#update.runtime = Math.floor((Date.now() - this.#startTime) / 1000)
+    this.#nextUpdate = Date.now() + this.#time
+    this.#delta = 0
+
+    this.emit('progress', this.#update)
+  }
+
+  _transform(chunk: any, _: BufferEncoding, callback: (error?: Error | null, data?: any) => void) {
     const len = this.readableObjectMode ? 1 : chunk.length
     this.#transferred += len
     this.#delta += len
     this.#update.transferred = this.#transferred
     this.#update.remaining = this.#length >= this.#transferred ? this.#length - this.#transferred : 0
 
-    if (Date.now() >= this.#nextUpdate) this.#emitProgress(false)
+    if (Date.now() >= this.#nextUpdate) this.#emitProgress()
     callback(null, chunk)
   }
 
-  _flush(callback: (error?: Error | null) => void): void {
+  _flush(callback: () => void) {
     this.#emitProgress(true)
     callback()
   }
 
-  #emitProgress(ended: boolean): void {
-    this.#update.delta = this.#delta
-    this.#update.percentage = ended ? 100 : this.#length ? (this.#transferred / this.#length) * 100 : 0
-    this.#update.speed = this.#speed(this.#delta)
-    this.#update.eta = Math.round(this.#update.remaining / this.#update.speed)
-    this.#update.runtime = Number.parseInt(((Date.now() - this.#startTime) / 1000).toString())
-    this.#nextUpdate = Date.now() + this.#time
+  #setupPipeHandler() {
+    this.on('pipe', (stream: any) => {
+      if (typeof this.#length === 'number' && this.#length > 0) return
 
-    this.#delta = 0
+      // Handle HTTP responses
+      if (stream.headers?.['content-length']) {
+        return this.setLength(Number.parseInt(stream.headers['content-length']))
+      }
 
-    this.emit('progress', this.#update)
+      // Handle streams with length property
+      if (typeof stream.length === 'number') {
+        return this.setLength(stream.length)
+      }
+
+      // Handle request module responses
+      stream.on('response', (res: any) => {
+        if (!res.headers || res.headers['content-encoding'] === 'gzip') return
+        if (res.headers['content-length']) {
+          this.setLength(Number.parseInt(res.headers['content-length']))
+        }
+      })
+    })
   }
-
-  setLength(newLength: number): void {
+  setLength(newLength: number) {
     this.#length = newLength
-    this.#update.length = this.#length
-    this.#update.remaining = this.#length - this.#update.transferred
-    this.emit('length', this.#length)
+    this.#update.length = newLength
+    this.#update.remaining = newLength - this.#transferred
+    this.emit('length', newLength)
   }
 
-  progress(): ProgressUpdate {
+  progress() {
     this.#update.speed = this.#speed(0)
-    this.#update.eta = Math.round(this.#update.remaining / this.#update.speed)
-
+    this.#update.eta = Math.round(this.#update.remaining / (this.#update.speed || 1))
     return this.#update
   }
 }
 
-export default function createProgressStream(
-  options: ProgressStreamOptions,
-  onprogress?: (update: ProgressUpdate) => void
-): ProgressStream {
-  if (typeof options === 'function') return createProgressStream(null as unknown as ProgressStreamOptions, options)
+export default function progressStream(options?: ProgressOptions | ProgressCallback, onprogress?: ProgressCallback) {
   return new ProgressStream(options, onprogress)
 }

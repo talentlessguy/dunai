@@ -14,5 +14,8 @@
   "dependencies": {
     "speedometer": "^1.1.0"
   },
-  "trustedDependencies": ["@biomejs/biome"]
+  "trustedDependencies": ["@biomejs/biome"],
+  "engines": {
+    "node": ">=18"
+  }
 }

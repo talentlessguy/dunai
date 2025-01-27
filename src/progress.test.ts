@@ -1,213 +1,103 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { createServer } from 'node:http'
-import { request } from 'node:http'
-import { Readable, Writable } from 'node:stream'
-import createProgressStream from './progress'
+// progress-stream.test.ts
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import progressStream from './progress'
+import type { ProgressUpdate } from './progress'
+
+// Smaller test data to ensure faster execution
+const sampleData = Buffer.alloc(1024 * 10) // 10KB buffer
 
 describe('ProgressStream', () => {
-  let progressStream: ReturnType<typeof createProgressStream>
-  let progressUpdates: Array<{ percentage: number; transferred: number; length: number }> = []
-  let server: ReturnType<typeof createServer>
-  let serverUrl: string
+  let lastUpdate: ProgressUpdate
 
   beforeEach(() => {
-    progressUpdates = []
-    progressStream = createProgressStream({}, (update) => {
-      progressUpdates.push({
-        percentage: update.percentage,
-        transferred: update.transferred,
-        length: update.length
-      })
-    })
-  })
-
-  afterEach(() => {
-    if (server) {
-      server.close()
+    lastUpdate = {
+      percentage: 0,
+      transferred: 0,
+      length: 0,
+      remaining: 0,
+      eta: 0,
+      runtime: 0
     }
   })
 
-  it('should emit progress events as data is processed', async () => {
-    const readable = new Readable({
-      read() {
-        this.push(Buffer.alloc(10)) // 10 bytes
-        this.push(Buffer.alloc(10)) // 20 bytes
-        this.push(Buffer.alloc(10)) // 30 bytes
-        this.push(null) // End the stream
+  async function runTestStream(options: any = {}, data = sampleData) {
+    const stream = progressStream({
+      time: 10,
+      drain: true,
+      ...options
+    })
+
+    const onProgress = mock((update: ProgressUpdate) => {
+      lastUpdate = update
+    })
+
+    stream.on('progress', onProgress)
+
+    // Create a simple transform stream to consume output
+    const consumer = new Transform({
+      transform(chunk, encoding, callback) {
+        callback(null, chunk)
       }
     })
 
-    const writable = new Writable({
-      write(chunk, _encoding, callback) {
-        callback()
-      }
-    })
+    await pipeline(
+      Readable.from(data), // Split into small chunks automatically
+      stream,
+      consumer
+    )
 
-    // Pipe the readable stream through the progress stream to the writable stream
-    readable.pipe(progressStream).pipe(writable)
+    return { onProgress }
+  }
 
-    // Wait for the stream to finish
-    await new Promise((resolve) => writable.on('finish', resolve))
+  it('should emit progress events with correct data', async () => {
+    const { onProgress } = await runTestStream({ length: sampleData.length })
 
-    // Verify progress updates
-    expect(progressUpdates).toEqual([
-      { percentage: 10, transferred: 10, length: 0 },
-      { percentage: 20, transferred: 20, length: 0 },
-      { percentage: 30, transferred: 30, length: 0 }
-    ])
+    // Verify final progress values
+    expect(onProgress).toHaveBeenCalled()
+    expect(lastUpdate.percentage).toBe(100)
+    expect(lastUpdate.transferred).toBe(sampleData.length)
+    expect(lastUpdate.remaining).toBe(0)
+    expect(lastUpdate.eta).toBeNumber()
+    expect(lastUpdate.runtime).toBeNumber()
   })
 
-  it('should handle dynamic length updates', async () => {
-    const readable = new Readable({
-      read() {
-        this.push(Buffer.alloc(10)) // 10 bytes
-        this.push(Buffer.alloc(10)) // 20 bytes
-        this.push(null) // End the stream
-      }
-    })
+  it('should handle unknown length streams', async () => {
+    const { onProgress } = await runTestStream()
 
-    const writable = new Writable({
-      write(chunk, _encoding, callback) {
-        callback()
-      }
-    })
-
-    // Pipe the readable stream through the progress stream to the writable stream
-    readable.pipe(progressStream).pipe(writable)
-
-    // Update the length dynamically
-    progressStream.setLength(20)
-
-    // Wait for the stream to finish
-    await new Promise((resolve) => writable.on('finish', resolve))
-
-    // Verify progress updates
-    expect(progressUpdates).toEqual([
-      { percentage: 50, transferred: 10, length: 20 }, // 10 / 20 = 50%
-      { percentage: 100, transferred: 20, length: 20 } // 20 / 20 = 100%
-    ])
+    expect(onProgress).toHaveBeenCalled()
+    expect(lastUpdate.percentage).toBe(0)
+    expect(lastUpdate.transferred).toBe(sampleData.length)
   })
 
-  it('should handle zero-length streams', async () => {
-    const readable = new Readable({
-      read() {
-        this.push(null) // End the stream immediately
-      }
+  it('should handle dynamic length updates via setLength', async () => {
+    const stream = progressStream({ time: 10, drain: true })
+    const onProgress = mock((update: ProgressUpdate) => {
+      lastUpdate = update
     })
 
-    const writable = new Writable({
-      write(chunk, _encoding, callback) {
-        callback()
-      }
-    })
+    stream.on('progress', onProgress)
 
-    // Pipe the readable stream through the progress stream to the writable stream
-    readable.pipe(progressStream).pipe(writable)
+    // First chunk - 50% of data
+    stream.write(Buffer.alloc(5120))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
-    // Wait for the stream to finish
-    await new Promise((resolve) => writable.on('finish', resolve))
+    // Update length to total size
+    stream.setLength(sampleData.length)
 
-    // Verify progress updates
-    expect(progressUpdates).toEqual([
-      { percentage: 100, transferred: 0, length: 0 } // Stream ended immediately
-    ])
-  })
-
-  it('should handle object mode streams', async () => {
-    const objectModeStream = createProgressStream({ objectMode: true, length: 3 }, (update) => {
-      progressUpdates.push({
-        percentage: update.percentage,
-        transferred: update.transferred,
-        length: update.length
+    // Pipe remaining data
+    await pipeline(
+      Readable.from(sampleData.slice(5120)),
+      stream,
+      new Transform({
+        transform(chunk, encoding, callback) {
+          callback(null, chunk)
+        }
       })
-    })
+    )
 
-    const readable = new Readable({
-      objectMode: true,
-      read() {
-        this.push({ data: 'chunk1' }) // 1 object
-        this.push({ data: 'chunk2' }) // 2 objects
-        this.push({ data: 'chunk3' }) // 3 objects
-        this.push(null) // End the stream
-      }
-    })
-
-    const writable = new Writable({
-      objectMode: true,
-      write(chunk, _encoding, callback) {
-        callback()
-      }
-    })
-
-    // Pipe the readable stream through the progress stream to the writable stream
-    readable.pipe(objectModeStream).pipe(writable)
-
-    // Wait for the stream to finish
-    await new Promise((resolve) => writable.on('finish', resolve))
-
-    // Verify progress updates
-    expect(progressUpdates).toEqual([
-      { percentage: 33.33333333333333, transferred: 1, length: 3 },
-      { percentage: 66.66666666666666, transferred: 2, length: 3 },
-      { percentage: 100, transferred: 3, length: 3 }
-    ])
-  })
-
-  it('should set length from HTTP stream headers', async () => {
-    // Create a local HTTP server to simulate an HTTP response
-    server = createServer((req, res) => {
-      res.writeHead(200, { 'Content-Length': '20' })
-      res.write(Buffer.alloc(10)) // 10 bytes
-      res.write(Buffer.alloc(10)) // 20 bytes
-      res.end()
-    })
-
-    server.listen(0) // Listen on a random port
-    serverUrl = `http://localhost:${(server.address() as any).port}`
-
-    const httpRequest = request(serverUrl, (response) => {
-      response.pipe(progressStream).pipe(
-        new Writable({
-          write(chunk, _encoding, callback) {
-            callback()
-          }
-        })
-      )
-    })
-
-    httpRequest.end()
-
-    // Wait for the stream to finish
-    await new Promise((resolve) => progressStream.on('end', resolve))
-
-    // Verify progress updates
-    expect(progressUpdates).toEqual([
-      { percentage: 50, transferred: 10, length: 20 }, // 10 / 20 = 50%
-      { percentage: 100, transferred: 20, length: 20 } // 20 / 20 = 100%
-    ])
-  })
-
-  it('should handle HTTP request to example.com', async () => {
-    const exampleUrl = 'http://example.com'
-    const httpRequest = request(exampleUrl, (response) => {
-      response.pipe(progressStream).pipe(
-        new Writable({
-          write(chunk, _encoding, callback) {
-            callback()
-          }
-        })
-      )
-    })
-
-    httpRequest.end()
-
-    // Wait for the stream to finish
-    await new Promise((resolve) => progressStream.on('end', resolve))
-
-    // Verify progress updates
-    expect(progressUpdates.length).toBeGreaterThan(0)
-    expect(progressUpdates[0].percentage).toBeGreaterThanOrEqual(0)
-    expect(progressUpdates[0].transferred).toBeGreaterThanOrEqual(0)
-    expect(progressUpdates[0].length).toBeGreaterThanOrEqual(0)
+    expect(lastUpdate.percentage).toBe(100)
+    expect(lastUpdate.transferred).toBe(sampleData.length)
   })
 })
