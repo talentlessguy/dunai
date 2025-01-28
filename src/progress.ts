@@ -1,38 +1,22 @@
 import { Transform } from 'node:stream'
 
-let tick = 1
-let timer: NodeJS.Timeout
-// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+let tick = 1,
+  timer: NodeJS.Timeout
 const inc = () => (tick = (tick + 1) & 65535)
 
 const speedometer = (seconds = 5) => {
-  if (!timer) {
-    timer = setInterval(inc, 250) as NodeJS.Timeout
-    timer.unref?.()
-  }
+  timer = timer || ((timer = setInterval(inc, 250)), timer.unref?.(), timer)
+  const size = 4 * seconds,
+    buf = [0]
+  let pointer = 1,
+    last = (tick - 1) & 65535
 
-  const size = 4 * seconds
-  const buf = [0]
-  let pointer = 1
-  let last = (tick - 1) & 65535
-
-  return (delta?: number) => {
-    let dist = (tick - last) & 65535
-    if (dist > size) dist = size
+  return (delta: number) => {
+    let dist = Math.min((tick - last) & 65535, size)
     last = tick
-
-    while (dist--) {
-      if (pointer === size) pointer = 0
-      buf[pointer] = buf[pointer === 0 ? size - 1 : pointer - 1]
-      pointer++
-    }
-
+    while (dist--) buf[pointer] = buf[(pointer = (pointer + 1) % size || size - 1)]
     if (delta) buf[pointer - 1] += delta
-
-    const top = buf[pointer - 1]
-    const len = buf.length
-
-    return len < 4 ? top : ((top - len < size ? 0 : buf[pointer === size ? 0 : pointer]) * 4) / len
+    return ((buf[pointer - 1] - (buf.length < 4 ? 0 : buf[pointer % size])) * 4) / buf.length
   }
 }
 
@@ -116,11 +100,9 @@ export class ProgressStream extends Transform {
   #emitProgress(ended = false) {
     this.#update.delta = this.#delta
 
-    // Fix percentage calculation for unknown lengths
     this.#update.percentage =
       ended && this.#length > 0 ? 100 : this.#length ? (this.#transferred / this.#length) * 100 : 0
 
-    // Rest of the method remains the same
     this.#update.speed = this.#speed(this.#delta)
     this.#update.eta = Math.round(this.#update.remaining / (this.#update.speed || 1))
     this.#update.runtime = Math.floor((Date.now() - this.#startTime) / 1000)
@@ -141,31 +123,22 @@ export class ProgressStream extends Transform {
     callback(null, chunk)
   }
 
-  _flush(callback: () => void) {
+  _flush(callback?: () => void) {
     this.#emitProgress(true)
-    callback()
+    callback?.()
   }
 
   #setupPipeHandler() {
     this.on('pipe', (stream: any) => {
       if (typeof this.#length === 'number' && this.#length > 0) return
 
-      // Handle HTTP responses
-      if (stream.headers?.['content-length']) {
-        return this.setLength(Number.parseInt(stream.headers['content-length']))
-      }
+      if (stream.headers?.['content-length']) return this.setLength(Number.parseInt(stream.headers['content-length']))
 
-      // Handle streams with length property
-      if (typeof stream.length === 'number') {
-        return this.setLength(stream.length)
-      }
+      if (typeof stream.length === 'number') return this.setLength(stream.length)
 
-      // Handle request module responses
       stream.on('response', (res: any) => {
         if (!res.headers || res.headers['content-encoding'] === 'gzip') return
-        if (res.headers['content-length']) {
-          this.setLength(Number.parseInt(res.headers['content-length']))
-        }
+        if (res.headers['content-length']) this.setLength(Number.parseInt(res.headers['content-length']))
       })
     })
   }

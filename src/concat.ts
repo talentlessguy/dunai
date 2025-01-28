@@ -5,13 +5,10 @@ interface ConcatStreamOptions {
   encoding?: string | null
 }
 
-function isArrayish(arr: unknown) {
-  return /Array\]$/.test(Object.prototype.toString.call(arr))
-}
+const isArrayish = (arr: unknown) => /Array\]$/.test(Object.prototype.toString.call(arr))
 
-function isBufferish(p: unknown) {
-  return typeof p === 'string' || isArrayish(p) || (p && typeof (p as any).subarray === 'function')
-}
+const isBufferish = (p: unknown) =>
+  typeof p === 'string' || isArrayish(p) || (p && typeof (p as any).subarray === 'function')
 
 export class ConcatStream extends Writable {
   encoding: ConcatStreamOptions['encoding'] | null
@@ -31,9 +28,7 @@ export class ConcatStream extends Writable {
     this.body = []
 
     if (cb) {
-      this.on('finish', () => {
-        cb(this.getBody())
-      })
+      this.on('finish', () => void cb(this.getBody()))
     }
   }
 
@@ -72,62 +67,34 @@ export class ConcatStream extends Writable {
 
   stringConcat(parts: any[]) {
     const strings = []
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts[i]
-      if (typeof p === 'string') {
-        strings.push(p)
-      } else if (Buffer.isBuffer(p)) {
-        strings.push(p)
-      } else if (isBufferish(p)) {
-        strings.push(Buffer.from(p))
-      } else {
-        strings.push(Buffer.from(String(p)))
-      }
+    for (const p of parts) {
+      if (typeof p === 'string' || Buffer.isBuffer(p)) strings.push(p)
+      else strings.push(Buffer.from(isBufferish(p) ? p : String(p)))
     }
-    if (Buffer.isBuffer(parts[0])) {
-      return Buffer.concat(strings as Buffer[]).toString('utf8')
-    }
-    return strings.join('')
+
+    return Buffer.isBuffer(parts[0]) ? Buffer.concat(strings as Buffer[]).toString('utf8') : strings.join('')
   }
 
-  bufferConcat(parts: any[]) {
-    const bufs = []
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts[i]
-      if (Buffer.isBuffer(p)) {
-        bufs.push(p)
-      } else if (isBufferish(p)) {
-        bufs.push(Buffer.from(p as string | Uint8Array))
-      } else {
-        bufs.push(Buffer.from(String(p)))
-      }
-    }
-    return Buffer.concat(bufs)
+  bufferConcat(parts: any[]): Buffer {
+    return Buffer.concat(parts.map((p) => (Buffer.isBuffer(p) ? p : Buffer.from(isBufferish(p) ? p : String(p)))))
   }
 
   arrayConcat<T>(parts: T[]) {
     return parts.flat()
   }
 
-  u8Concat(parts: Uint8Array[]) {
-    let len = 0
-    for (let i = 0; i < parts.length; i++) {
-      if (typeof parts[i] === 'string') {
-        parts[i] = Buffer.from(parts[i])
-      }
-      len += parts[i].length
-    }
-    const u8 = new Uint8Array(len)
-    for (let i = 0, offset = 0; i < parts.length; i++) {
-      const part = parts[i]
-      for (let j = 0; j < part.length; j++) {
-        u8[offset++] = part[j]
-      }
-    }
+  u8Concat(parts: Uint8Array[]): Uint8Array {
+    const u8 = new Uint8Array(
+      parts.reduce((len, part) => len + (typeof part === 'string' ? Buffer.from(part).length : part.length), 0)
+    )
+    parts.reduce((offset, part) => {
+      const buffer = typeof part === 'string' ? Buffer.from(part) : part
+      u8.set(buffer, offset)
+      return offset + buffer.length
+    }, 0)
     return u8
   }
 }
 
-export const concat = (opts?: ConcatStreamOptions | ((body: any) => void), cb?: (body: any) => void) => {
-  return new ConcatStream(opts, cb)
-}
+export const concat = (opts?: ConcatStreamOptions | ((body: any) => void), cb?: (body: any) => void) =>
+  new ConcatStream(opts, cb)

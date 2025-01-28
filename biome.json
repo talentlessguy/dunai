@@ -20,13 +20,15 @@
     "rules": {
       "recommended": true,
       "style": {
-        "useNodejsImportProtocol": "off",
-        "noParameterAssign": "off"
+        "noParameterAssign": "off",
+        "useSingleVarDeclarator": "off",
+        "noCommaOperator": "off"
       },
       "suspicious": {
         "noConfusingVoidType": "off",
         "noExplicitAny": "off",
-        "noUnsafeDeclarationMerging": "off"
+        "noUnsafeDeclarationMerging": "off",
+        "noAssignInExpressions": "off"
       }
     }
   },
