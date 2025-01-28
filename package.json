@@ -29,9 +29,9 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test test/*.test.ts",
+    "test": "tsx --test 'test/*.test.ts'",
     "check": "biome check --write",
-    "test:coverage": "c8 tsx --test test/*.test.ts",
+    "test:coverage": "c8 tsx --test 'test/*.test.ts'",
     "test:report": "c8 report --reporter=text-lcov > coverage.lcov"
   },
   "type": "module",
