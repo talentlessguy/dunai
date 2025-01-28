@@ -1,5 +1,5 @@
 import http from 'node:http'
-import progressStream from '../src/progress'
+import progressStream from 'dunai/progress'
 
 const str = progressStream({
   drain: true,

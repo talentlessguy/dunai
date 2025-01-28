@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { beforeEach, describe, it, mock } from 'node:test'
-import progressStream from '../src/progress'
+import { createProgressStream } from '../src/progress'
 import type { ProgressUpdate } from '../src/progress'
 
 const sampleData = Buffer.alloc(1024 * 10)
@@ -22,7 +22,7 @@ describe('ProgressStream', () => {
   })
 
   async function runTestStream(options: any = {}, data = sampleData) {
-    const stream = progressStream({
+    const stream = createProgressStream({
       time: 10,
       drain: true,
       ...options
@@ -66,7 +66,7 @@ describe('ProgressStream', () => {
   })
 
   it('should handle dynamic length updates via setLength', async () => {
-    const stream = progressStream({ time: 10, drain: true })
+    const stream = createProgressStream({ time: 10, drain: true })
     const onProgress = mock.fn((update: ProgressUpdate) => {
       lastUpdate = update
     })

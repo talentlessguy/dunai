@@ -14,6 +14,9 @@ importers:
       '@types/node':
         specifier: ^22.10.10
         version: 22.10.10
+      dunai:
+        specifier: link:./
+        version: 'link:'
       expect:
         specifier: ^29.7.0
         version: 29.7.0

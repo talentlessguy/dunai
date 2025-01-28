@@ -58,7 +58,7 @@ export interface ProgressUpdate {
 
 type ProgressCallback = (update: ProgressUpdate) => void
 
-interface ProgressStream extends Transform {
+export interface ProgressStream extends Transform {
   on(event: string | symbol, listener: (...args: any[]) => void): this
   on(event: 'length', listener: (length: number) => void): this
   on(event: 'progress', listener: (update: ProgressUpdate) => void): this
@@ -67,7 +67,7 @@ interface ProgressStream extends Transform {
   emit(event: 'progress', update: ProgressUpdate): boolean
 }
 
-class ProgressStream extends Transform {
+export class ProgressStream extends Transform {
   #length: number
   #time: number
   #drain: boolean
@@ -183,6 +183,6 @@ class ProgressStream extends Transform {
   }
 }
 
-export default function progressStream(options?: ProgressOptions | ProgressCallback, onprogress?: ProgressCallback) {
+export function createProgressStream(options?: ProgressOptions | ProgressCallback, onprogress?: ProgressCallback) {
   return new ProgressStream(options, onprogress)
 }
