@@ -28,8 +28,7 @@ jobs:
         run: biome ci .
 
       - name: Run tests
-        run: pnpm test:coverage
-        run: pnpm test:report
+        run: pnpm test:coverage && pnpm test:report
       - name: Upload coverage
       - name: Coveralls
         if: ${{ matrix.os == 'ubuntu-latest' }}
