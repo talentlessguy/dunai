@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import http from 'node:http'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { beforeEach, describe, it, mock } from 'node:test'
@@ -93,5 +94,63 @@ describe('ProgressStream', () => {
 
     assert.strictEqual(lastUpdate.percentage, 100, 'percentage should be 100')
     assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
+  })
+
+  it('should properly log progress for a 1MB file download', async () => {
+    const progressStream = createProgressStream({
+      drain: true,
+      time: 100,
+      speed: 20
+    })
+
+    const progressPercentages: number[] = []
+
+    progressStream.on('progress', (progress) => {
+      progressPercentages.push(progress.percentage)
+    })
+
+    const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      const req = http.request(
+        {
+          method: 'GET',
+          host: 'cachefly.cachefly.net',
+          path: '/1mb.test',
+          headers: {
+            'user-agent': 'testy test'
+          }
+        },
+        (res) => {
+          resolve(res)
+        }
+      )
+
+      req.on('error', (err) => {
+        reject(err)
+      })
+
+      req.end()
+    })
+
+    response.pipe(progressStream)
+
+    return await new Promise<void>((resolve, reject) => {
+      progressStream.on('end', () => {
+        assert.ok(progressPercentages.length > 0, 'No progress updates were received')
+        try {
+          assert.ok(progressPercentages.length > 0, 'No progress updates were received')
+
+          const finalPercentage = progressPercentages[progressPercentages.length - 1]
+          assert.strictEqual(finalPercentage, 100, 'Final progress percentage should be 100%')
+
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      })
+
+      progressStream.on('error', (err) => {
+        reject(err)
+      })
+    })
   })
 })
