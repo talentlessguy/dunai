@@ -95,7 +95,7 @@ export class ProgressStream extends Transform {
     if (this.#drain) this.resume()
     if (onprogress) this.on('progress', onprogress)
 
-    this.#setupPipeHandler()
+    this.#pipeHandler()
   }
 
   #emitProgress(ended = false) {
@@ -129,7 +129,7 @@ export class ProgressStream extends Transform {
     callback?.()
   }
 
-  #setupPipeHandler() {
+  #pipeHandler() {
     this.on('pipe', (stream: IncomingMessage | Stream) => {
       if (typeof this.#length === 'number' && this.#length > 0) return
 

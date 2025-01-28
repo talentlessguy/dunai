@@ -27,9 +27,7 @@ export class ConcatStream extends Writable {
     this.shouldInferEncoding = !this.encoding
     this.body = []
 
-    if (cb) {
-      this.on('finish', () => void cb(this.getBody()))
-    }
+    if (cb) this.on('finish', () => void cb(this.getBody()))
   }
 
   _write(chunk: any, enc: NodeJS.BufferEncoding, next?: () => void) {
