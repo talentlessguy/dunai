@@ -21,18 +21,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - name: Setup Biome
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-24.04-arm' }}
         uses: biomejs/setup-biome@v2
         with:
           version: latest
       - name: Run Biome
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-24.04-arm' }}
         run: biome ci .
 
       - name: Run tests
         run: pnpm test:coverage && pnpm test:report
       - name: Coveralls
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'ubuntu-24.04-arm' }}
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
