@@ -1,6 +1,6 @@
 {
   "name": "dunai",
-  "version": "0.0.0-dev.0",
+  "version": "0.0.0-dev",
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.10.10",
@@ -29,7 +29,5 @@
     "check": "biome check --write"
   },
   "type": "module",
-  "files": [
-    "dist"
-  ]
+  "files": ["dist"]
 }
