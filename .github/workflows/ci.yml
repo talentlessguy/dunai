@@ -1,0 +1,28 @@
+name: CI
+
+on: [push]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable corepack
+        run: corepack enable pnpm
+
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'pnpm'
+          node-version: 22
+
+      - run: pnpm install --frozen-lockfile
+      - name: Setup Biome
+        uses: biomejs/setup-biome@v2
+        with:
+          version: latest
+      - name: Run Biome
+        run: biome ci .
+
+      - name: Run tests
+        run: pnpm test

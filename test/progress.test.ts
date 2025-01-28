@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, mock } from 'bun:test'
+import assert from 'node:assert/strict'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { beforeEach, describe, it, mock } from 'node:test'
 import progressStream from '../src/progress'
 import type { ProgressUpdate } from '../src/progress'
 
@@ -27,7 +28,7 @@ describe('ProgressStream', () => {
       ...options
     })
 
-    const onProgress = mock((update: ProgressUpdate) => {
+    const onProgress = mock.fn((update: ProgressUpdate) => {
       lastUpdate = update
     })
 
@@ -48,25 +49,25 @@ describe('ProgressStream', () => {
     const { onProgress } = await runTestStream({ length: sampleData.length })
 
     // Verify final progress values
-    expect(onProgress).toHaveBeenCalled()
-    expect(lastUpdate.percentage).toBe(100)
-    expect(lastUpdate.transferred).toBe(sampleData.length)
-    expect(lastUpdate.remaining).toBe(0)
-    expect(lastUpdate.eta).toBeNumber()
-    expect(lastUpdate.runtime).toBeNumber()
+    assert.ok(onProgress.mock.calls.length > 0, 'onProgress should have been called')
+    assert.strictEqual(lastUpdate.percentage, 100, 'percentage should be 100')
+    assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
+    assert.strictEqual(lastUpdate.remaining, 0, 'remaining should be 0')
+    assert.strictEqual(typeof lastUpdate.eta, 'number', 'eta should be a number')
+    assert.strictEqual(typeof lastUpdate.runtime, 'number', 'runtime should be a number')
   })
 
   it('should handle unknown length streams', async () => {
     const { onProgress } = await runTestStream()
 
-    expect(onProgress).toHaveBeenCalled()
-    expect(lastUpdate.percentage).toBe(0)
-    expect(lastUpdate.transferred).toBe(sampleData.length)
+    assert.ok(onProgress.mock.calls.length > 0, 'onProgress should have been called')
+    assert.strictEqual(lastUpdate.percentage, 0, 'percentage should be 0')
+    assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
   })
 
   it('should handle dynamic length updates via setLength', async () => {
     const stream = progressStream({ time: 10, drain: true })
-    const onProgress = mock((update: ProgressUpdate) => {
+    const onProgress = mock.fn((update: ProgressUpdate) => {
       lastUpdate = update
     })
 
@@ -90,7 +91,7 @@ describe('ProgressStream', () => {
       })
     )
 
-    expect(lastUpdate.percentage).toBe(100)
-    expect(lastUpdate.transferred).toBe(sampleData.length)
+    assert.strictEqual(lastUpdate.percentage, 100, 'percentage should be 100')
+    assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
   })
 })

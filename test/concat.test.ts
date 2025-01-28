@@ -1,13 +1,14 @@
-import { expect, test } from 'bun:test'
 import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
+import { test } from 'node:test'
+import { expect } from 'expect'
 import { concat } from '../src/concat'
 
 test('ls command', () => {
-  const cmd = spawn('ls', [__dirname])
+  const cmd = spawn('ls', [import.meta.dirname])
   cmd.stdout.pipe(
     concat((out) => {
-      exec(`ls ${__dirname}`, (err, body) => {
+      exec(`ls ${import.meta.dirname}`, (err, body) => {
         expect(out.toString()).toBe(body.toString())
       })
     })

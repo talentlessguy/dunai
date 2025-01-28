@@ -1,9 +1,11 @@
 {
   "name": "dunai",
+  "version": "0.0.0-dev",
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/bun": "latest",
-    "@types/node": "^22.10.10"
+    "@types/node": "^22.10.10",
+    "expect": "^29.7.0",
+    "tsx": "^4.19.2"
   },
   "peerDependencies": {
     "typescript": "^5.7.3"
@@ -22,8 +24,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsx --test"
   },
-  "trustedDependencies": ["@biomejs/biome"],
-  "type": "module"
+  "type": "module",
+  "files": ["dist"]
 }
