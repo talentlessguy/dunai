@@ -1,4 +1,5 @@
-import { Transform } from 'node:stream'
+import { IncomingMessage } from 'node:http'
+import { Readable, type Stream, Transform } from 'node:stream'
 
 let tick = 1,
   timer: NodeJS.Timeout
@@ -129,14 +130,15 @@ export class ProgressStream extends Transform {
   }
 
   #setupPipeHandler() {
-    this.on('pipe', (stream: any) => {
+    this.on('pipe', (stream: IncomingMessage | Stream) => {
       if (typeof this.#length === 'number' && this.#length > 0) return
 
-      if (stream.headers?.['content-length']) return this.setLength(Number.parseInt(stream.headers['content-length']))
+      if (stream instanceof IncomingMessage && stream.headers?.['content-length'])
+        return this.setLength(Number.parseInt(stream.headers['content-length']))
 
-      if (typeof stream.length === 'number') return this.setLength(stream.length)
+      if ('length' in stream && typeof stream.length === 'number') return this.setLength(stream.length)
 
-      stream.on('response', (res: any) => {
+      stream.on('response', (res: IncomingMessage) => {
         if (!res.headers || res.headers['content-encoding'] === 'gzip') return
         if (res.headers['content-length']) this.setLength(Number.parseInt(res.headers['content-length']))
       })

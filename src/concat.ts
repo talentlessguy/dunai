@@ -53,7 +53,7 @@ export class ConcatStream extends Writable {
 
     switch (this.encoding) {
       case 'array':
-        return this.arrayConcat(this.body)
+        return this.body.flat()
       case 'string':
         return this.stringConcat(this.body)
       case 'buffer':
@@ -77,10 +77,6 @@ export class ConcatStream extends Writable {
 
   bufferConcat(parts: any[]): Buffer {
     return Buffer.concat(parts.map((p) => (Buffer.isBuffer(p) ? p : Buffer.from(isBufferish(p) ? p : String(p)))))
-  }
-
-  arrayConcat<T>(parts: T[]) {
-    return parts.flat()
   }
 
   u8Concat(parts: Uint8Array[]): Uint8Array {
