@@ -1,5 +1,6 @@
 # dunai
 
-tiny utilities for node streams
+A collection of tiny utilities for node streams
 
-- progress
+- progress, based with `progress-stream`
+- concat, based with `concat-stream`
