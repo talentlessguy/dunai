@@ -9,6 +9,10 @@
     "typescript": "^5.7.3",
     "dunai": "link:./"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/talentlessguy/dunai.git"
+  },
   "exports": {
     "./concat": {
       "types": "./dist/concat.d.ts",
