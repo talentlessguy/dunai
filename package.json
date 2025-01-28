@@ -25,7 +25,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test"
+    "test": "tsx --test",
+    "check": "biome check --write"
   },
   "type": "module",
   "files": ["dist"]
