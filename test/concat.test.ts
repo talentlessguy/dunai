@@ -8,7 +8,7 @@ test('ls command', () => {
   const cmd = spawn('ls', [import.meta.dirname])
   cmd.stdout.pipe(
     concat((out) => {
-      exec(`ls ${import.meta.dirname}`, (err, body) => {
+      exec(`ls ${import.meta.dirname}`, (_, body) => {
         expect(out.toString()).toBe(body.toString())
       })
     })
