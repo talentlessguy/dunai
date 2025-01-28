@@ -3,14 +3,10 @@
   "workspaces": {
     "": {
       "name": "dunai",
-      "dependencies": {
-        "speedometer": "^1.1.0",
-      },
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
         "@types/bun": "latest",
         "@types/node": "^22.10.10",
-        "@types/speedometer": "^1.1.3",
       },
       "peerDependencies": {
         "typescript": "^5.7.3",
@@ -43,13 +39,9 @@
 
     "@types/node": ["@types/node@22.10.10", "", { "dependencies": { "undici-types": "~6.20.0" } }, "sha512-X47y/mPNzxviAGY5TcYPtYL8JsY3kAq2n8fMmKoRCxq/c4v4pyGNCzM2R6+M5/umG4ZfHuT+sgqDYqWc9rJ6ww=="],
 
-    "@types/speedometer": ["@types/speedometer@1.1.3", "", {}, "sha512-1u/cgOK4H7AnKc22xZOAO0Usi2eX2mPPGQCRmSrdXA4tlxylPRF401C9uwINY9EMdvzvxK6LeegPPLfCX7abMA=="],
-
     "@types/ws": ["@types/ws@8.5.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-bd/YFLW+URhBzMXurx7lWByOu+xzU9+kb3RboOteXYDfW+tr+JZa99OyNmPINEGB/ahzKrEuc8rcv4gnpJmxTw=="],
 
     "bun-types": ["bun-types@1.2.0", "", { "dependencies": { "@types/node": "*", "@types/ws": "~8.5.10" } }, "sha512-KEaJxyZfbV/c4eyG0vyehDpYmBGreNiQbZIqvVHJwZ4BmeuWlNZ7EAzMN2Zcd7ailmS/tGVW0BgYbGf+lGEpWw=="],
-
-    "speedometer": ["speedometer@1.1.0", "", {}, "sha512-z/wAiTESw2XVPssY2XRcme4niTc4S5FkkJ4gknudtVoc33Zil8TdTxHy5torRcgqMqksJV2Yz8HQcvtbsnw0mQ=="],
 
     "typescript": ["typescript@5.7.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-84MVSjMEHP+FQRPy3pX9sTVV/INIex71s9TL2Gm5FG/WG1SqXeKyZ0k7/blY/4FdOzI12CBy1vGc4og/eus0fw=="],
 

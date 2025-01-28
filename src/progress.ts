@@ -1,5 +1,40 @@
 import { Transform } from 'node:stream'
-import speedometer from 'speedometer'
+
+let tick = 1
+let timer: NodeJS.Timeout
+// biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+const inc = () => (tick = (tick + 1) & 65535)
+
+const speedometer = (seconds = 5) => {
+  if (!timer) {
+    timer = setInterval(inc, 250) as NodeJS.Timeout
+    timer.unref?.()
+  }
+
+  const size = 4 * seconds
+  const buf = [0]
+  let pointer = 1
+  let last = (tick - 1) & 65535
+
+  return (delta?: number) => {
+    let dist = (tick - last) & 65535
+    if (dist > size) dist = size
+    last = tick
+
+    while (dist--) {
+      if (pointer === size) pointer = 0
+      buf[pointer] = buf[pointer === 0 ? size - 1 : pointer - 1]
+      pointer++
+    }
+
+    if (delta) buf[pointer - 1] += delta
+
+    const top = buf[pointer - 1]
+    const len = buf.length
+
+    return len < 4 ? top : ((top - len < size ? 0 : buf[pointer === size ? 0 : pointer]) * 4) / len
+  }
+}
 
 export interface ProgressOptions {
   length?: number

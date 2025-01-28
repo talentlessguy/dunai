@@ -1,12 +1,10 @@
-// progress-stream.test.ts
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import progressStream from '../src/progress'
 import type { ProgressUpdate } from '../src/progress'
 
-// Smaller test data to ensure faster execution
-const sampleData = Buffer.alloc(1024 * 10) // 10KB buffer
+const sampleData = Buffer.alloc(1024 * 10)
 
 describe('ProgressStream', () => {
   let lastUpdate: ProgressUpdate
@@ -35,18 +33,13 @@ describe('ProgressStream', () => {
 
     stream.on('progress', onProgress)
 
-    // Create a simple transform stream to consume output
     const consumer = new Transform({
       transform(chunk, encoding, callback) {
         callback(null, chunk)
       }
     })
 
-    await pipeline(
-      Readable.from(data), // Split into small chunks automatically
-      stream,
-      consumer
-    )
+    await pipeline(Readable.from(data), stream, consumer)
 
     return { onProgress }
   }

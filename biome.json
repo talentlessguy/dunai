@@ -25,7 +25,8 @@
       },
       "suspicious": {
         "noConfusingVoidType": "off",
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noUnsafeDeclarationMerging": "off"
       }
     }
   },
