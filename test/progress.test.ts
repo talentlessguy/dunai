@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import progressStream from './progress'
-import type { ProgressUpdate } from './progress'
+import progressStream from '../src/progress'
+import type { ProgressUpdate } from '../src/progress'
 
 // Smaller test data to ensure faster execution
 const sampleData = Buffer.alloc(1024 * 10) // 10KB buffer

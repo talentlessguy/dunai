@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { Buffer } from 'node:buffer'
 import { exec, spawn } from 'node:child_process'
-import { concat } from './concat'
+import { concat } from '../src/concat'
 
 test('ls command', () => {
   const cmd = spawn('ls', [__dirname])
