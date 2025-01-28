@@ -21,10 +21,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - name: Setup Biome
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: biomejs/setup-biome@v2
         with:
           version: latest
       - name: Run Biome
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: biome ci .
 
       - name: Run tests
