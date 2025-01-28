@@ -4,7 +4,10 @@ on: [push]
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,4 +28,12 @@ jobs:
         run: biome ci .
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test:coverage
+        run: pnpm test:report
+      - name: Upload coverage
+      - name: Coveralls
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./coverage.lcov

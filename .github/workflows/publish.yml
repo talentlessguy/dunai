@@ -3,7 +3,7 @@ on:
   release:
     types: [published]
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,7 +27,8 @@ jobs:
 
       - name: Run Biome
         run: biome ci .
-      - run: pnpm publish --no-git-checks
+      - name: Publish
+        run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true

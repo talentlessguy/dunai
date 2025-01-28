@@ -3,12 +3,13 @@ import http from 'node:http'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { beforeEach, describe, it, mock } from 'node:test'
+import { setTimeout } from 'node:timers/promises'
 import { createProgressStream } from '../src/progress'
-import type { ProgressUpdate } from '../src/progress'
+import type { ProgressOptions, ProgressUpdate } from '../src/progress'
 
 const sampleData = Buffer.alloc(1024 * 10)
 
-describe('ProgressStream', () => {
+describe('ProgressStream', async () => {
   let lastUpdate: ProgressUpdate
 
   beforeEach(() => {
@@ -22,7 +23,7 @@ describe('ProgressStream', () => {
     }
   })
 
-  async function runTestStream(options: any = {}, data = sampleData) {
+  async function runTestStream(options: ProgressOptions = {}, data = sampleData) {
     const stream = createProgressStream({
       time: 10,
       drain: true,
@@ -50,7 +51,7 @@ describe('ProgressStream', () => {
     const { onProgress } = await runTestStream({ length: sampleData.length })
 
     // Verify final progress values
-    assert.ok(onProgress.mock.calls.length > 0, 'onProgress should have been called')
+    assert.ok(onProgress.mock.callCount() > 0, 'onProgress should have been called')
     assert.strictEqual(lastUpdate.percentage, 100, 'percentage should be 100')
     assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
     assert.strictEqual(lastUpdate.remaining, 0, 'remaining should be 0')
@@ -61,7 +62,7 @@ describe('ProgressStream', () => {
   it('should handle unknown length streams', async () => {
     const { onProgress } = await runTestStream()
 
-    assert.ok(onProgress.mock.calls.length > 0, 'onProgress should have been called')
+    assert.ok(onProgress.mock.callCount() > 0, 'onProgress should have been called')
     assert.strictEqual(lastUpdate.percentage, 0, 'percentage should be 0')
     assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
   })
@@ -76,14 +77,14 @@ describe('ProgressStream', () => {
 
     // First chunk - 50% of data
     stream.write(Buffer.alloc(5120))
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    await setTimeout(10)
 
     // Update length to total size
     stream.setLength(sampleData.length)
 
     // Pipe remaining data
     await pipeline(
-      Readable.from(sampleData.slice(5120)),
+      Readable.from(sampleData.subarray(5120)),
       stream,
       new Transform({
         transform(chunk, encoding, callback) {
@@ -94,6 +95,21 @@ describe('ProgressStream', () => {
 
     assert.strictEqual(lastUpdate.percentage, 100, 'percentage should be 100')
     assert.strictEqual(lastUpdate.transferred, sampleData.length, 'transferred should equal sampleData length')
+  })
+
+  it('should trigger onprogress event', async () => {
+    const onProgress = mock.fn()
+    const stream = createProgressStream(onProgress)
+
+    const consumer = new Transform({
+      transform(chunk, encoding, callback) {
+        callback(null, chunk)
+      }
+    })
+
+    await pipeline(Readable.from(sampleData), stream, consumer)
+
+    assert(onProgress.mock.callCount() > 0, 'no progress happened')
   })
 
   it('should properly log progress for a 1MB file download', async () => {

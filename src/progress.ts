@@ -1,5 +1,5 @@
 import { IncomingMessage } from 'node:http'
-import { Readable, type Stream, Transform } from 'node:stream'
+import { type Stream, Transform } from 'node:stream'
 
 let tick = 1,
   timer: NodeJS.Timeout
