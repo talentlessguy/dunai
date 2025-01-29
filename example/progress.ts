@@ -1,7 +1,7 @@
 import http from 'node:http'
-import progressStream from 'dunai/progress'
+import { createProgressStream } from '../src/progress'
 
-const str = progressStream({
+const str = createProgressStream({
   drain: true,
   time: 100,
   speed: 20
